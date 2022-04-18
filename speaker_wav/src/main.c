@@ -53,17 +53,17 @@ int main (void)
     uint32_t sampleRate = 0;
     uint32_t delay = 0;
 
-    GPIO_SetDir(2, 1<<0, 1);
-    GPIO_SetDir(2, 1<<1, 1);
+    GPIO_SetDir(2, 1<<0, 1); //GPIO_28
+    GPIO_SetDir(2, 1<<1, 1); //GPIO_29
 
-    GPIO_SetDir(0, 1<<27, 1);
-    GPIO_SetDir(0, 1<<28, 1);
-    GPIO_SetDir(2, 1<<13, 1);
-    GPIO_SetDir(0, 1<<26, 1);
+    GPIO_SetDir(0, 1<<27, 1); // PIO3_0 GPIO_21
+    GPIO_SetDir(0, 1<<28, 1); // PIO3_1 GPIO_22
+    GPIO_SetDir(2, 1<<13, 1); // PIO2_13 GPIO_23
+    GPIO_SetDir(0, 1<<26, 1); // GPIO_14 DAC OUTPUT
 
-    GPIO_ClearValue(0, 1<<27); //LM4811-clk
-    GPIO_ClearValue(0, 1<<28); //LM4811-up/dn
-    GPIO_ClearValue(2, 1<<13); //LM4811-shutdn
+    GPIO_ClearValue(0, 1<<27); //LM4811-clk AMP clock
+    GPIO_ClearValue(0, 1<<28); //LM4811-up/dn AMP digital control signal
+    GPIO_ClearValue(2, 1<<13); //LM4811-shutdn AMP shutdown control signal
 
 	/*
 	 * Init DAC pin connect
