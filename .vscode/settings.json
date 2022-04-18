@@ -1,5 +1,5 @@
 {
     "files.insertFinalNewline": true,
-    "editor.formatOnSave": true,
+    "editor.formatOnSave": false,
     "files.trimTrailingWhitespace": true
 }

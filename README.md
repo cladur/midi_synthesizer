@@ -17,6 +17,7 @@ Functionalities:
 - [ ] Amplifier (for Speaker)
 - [ ] Potentiometr (?)
 - [ ] Accelerometr (?)
+- [ ] Find other functionalities
 
 Find and configure tools for:
 
@@ -25,4 +26,4 @@ Find and configure tools for:
 
 Also:
 
-- [ ] Check which files we can add to .gitignore (for example: .launch).
+- [ ] Check which files we can add to .gitignore (for example: .launch)
