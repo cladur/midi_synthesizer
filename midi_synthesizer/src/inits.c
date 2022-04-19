@@ -1,4 +1,14 @@
-#include "inits.c"
+#include "inits.h"
+
+#include "lpc17xx_dac.h"
+#include "lpc17xx_pinsel.h"
+#include "lpc17xx_gpdma.h"
+#include "lpc17xx_gpio.h"
+#include "lpc17xx_uart.h"
+#include "lpc17xx_adc.h"
+#include "lpc17xx_i2c.h"
+#include "lpc17xx_ssp.h"
+#include "lpc17xx_timer.h"
 
 #define UART_DEV LPC_UART3
 
@@ -126,11 +136,13 @@ void init_dac() {
     PinCfg.Pinnum = 26;
     PinCfg.Portnum = 0;
     PINSEL_ConfigPin(&PinCfg);
+
+    DAC_Init(LPC_DAC);
 }
 
 
 
-void gpdma_setup(GPDMA_LLI_Type* DMA_LLI_Struct, GPDMA_Channel_CFG_Type* GPDMACfg, uint32_t* dac_wave_lut, uint32_t dma_size) {
+void dac_dma_setup(GPDMA_LLI_Type* DMA_LLI_Struct, GPDMA_Channel_CFG_Type* GPDMACfg, uint32_t* dac_wave_lut, uint32_t dma_size) {
     /* GPDMA block section -------------------------------------------- */
     /* Initialize GPDMA controller */
     GPDMA_Init();
@@ -138,7 +150,7 @@ void gpdma_setup(GPDMA_LLI_Type* DMA_LLI_Struct, GPDMA_Channel_CFG_Type* GPDMACf
     //Prepare DMA link list item structure
     DMA_LLI_Struct->SrcAddr= (uint32_t)dac_wave_lut;
     DMA_LLI_Struct->DstAddr= (uint32_t)&(LPC_DAC->DACR);
-    DMA_LLI_Struct->NextLLI= (uint32_t)&DMA_LLI_Struct;
+    DMA_LLI_Struct->NextLLI= (uint32_t)DMA_LLI_Struct;
     DMA_LLI_Struct->Control= dma_size
                             | (2<<18) //source width 32 bit
                             | (2<<21) //dest. width 32 bit
@@ -163,7 +175,15 @@ void gpdma_setup(GPDMA_LLI_Type* DMA_LLI_Struct, GPDMA_Channel_CFG_Type* GPDMACf
     // Destination connection
     GPDMACfg->DstConn = GPDMA_CONN_DAC;
     // Linker List Item - unused
-    GPDMACfg->DMALLI = (uint32_t)&DMA_LLI_Struct;
+    GPDMACfg->DMALLI = (uint32_t)DMA_LLI_Struct;
     // Setup channel with given parameter
-    GPDMA_Setup(&GPDMACfg);
+    GPDMA_Setup(GPDMACfg);
+
+    DAC_CONVERTER_CFG_Type DAC_ConverterConfigStruct;
+    DAC_ConverterConfigStruct.CNT_ENA = SET;
+    DAC_ConverterConfigStruct.DMA_ENA = SET;
+    DAC_ConfigDAConverterControl(LPC_DAC, &DAC_ConverterConfigStruct);
+
+    // Enable GPDMA channel 0
+    GPDMA_ChannelCmd(0, ENABLE);
 }

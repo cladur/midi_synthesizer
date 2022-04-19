@@ -1,7 +1,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "our_bool.h"
+#include <stdint.h>
+#include <stdbool.h>
 
 // TODO: Move it back to main.c and parametrize lut_fill_with_... functions with it
 #define WAVE_SAMPLES_COUNT 60

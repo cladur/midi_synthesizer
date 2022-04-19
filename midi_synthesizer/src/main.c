@@ -16,22 +16,27 @@
 
 #include "inits.h"
 #include "utils.h"
+#include "pca_leds.h"
 
 #define DMA_SIZE                60
 #define WAVE_FREQUENCY_INITIAL  440
 #define WAVE_FREQUENCY_MIN      10
 #define WAVE_FREQUENCY_MAX      800
-#define PCLK_DAC_IN_MHZ         25 //CCLK divided by 4
+
+// -------- VARIABLES FOR PROGRAM STATE --------
+uint16_t wave_frequency = WAVE_FREQUENCY_INITIAL;
+// Buffer for storing wave frequency value in text form.
+// Used for printing onto the display.
+uint8_t wave_frequency_text[10] = {0};
+// Lookup table for DAC.
+uint32_t wave_lut[WAVE_SAMPLES_COUNT] = {0};
+
+// These structs need to be valid for the entire duration of the program
+// We can't just use them and let them be freed when they get out of scope
+GPDMA_Channel_CFG_Type GPDMACfg;
+GPDMA_LLI_Type DMA_LLI_Struct;
 
 int main() {
-    // -------- VARIABLES FOR PROGRAM STATE --------
-    uint16_t wave_frequency = INITIAL_WAVE_FREQUENCY;
-    // Buffer for storing wave frequency value in text form.
-    // Used for printing onto the display.
-    uint8_t wave_frequency_text[10] = {0};
-    // Lookup table for DAC.
-    uint32_t wave_lut[WAVE_SAMPLES_COUNT] = {0};
-
     // -------- INITIALIZE PERIPHERALS --------
     init_i2c();
     init_uart();
@@ -44,37 +49,20 @@ int main() {
     pca9532_init();
 
     // -------- SETUP DAC - DMA TRANSFER --------
-    // These structs need to be valid for the entire duration of the program.
-    // We can't just use them and let them be freed when they get out of scope.
-    GPDMA_Channel_CFG_Type GPDMACfg = {0};
-    GPDMA_LLI_Type DMA_LLI_Struct = {0};
+    dac_dma_setup(&GPDMACfg, &DMA_LLI_Struct, wave_lut, DMA_SIZE);
 
     lut_fill_with_sine(wave_lut);
-    gpdma_setup(&GPDMACfg, &DMA_LLI_Struct, wave_lut, dma_size);
-    DAC_Init(LPC_DAC); // TODO: Check if it can be moved into `init_dac()`
-
     dac_update_frequency(wave_frequency);
-
-    // TODO: Look into what this stuff does, put it into another function or a new one.
-    // TODO: Check if it needs to be valid for the entire duration of the program! (Probably yes)
-    DAC_CONVERTER_CFG_Type DAC_ConverterConfigStruct;
-    DAC_ConverterConfigStruct.CNT_ENA = SET;
-    DAC_ConverterConfigStruct.DMA_ENA = SET;
-    DAC_ConfigDAConverterControl(LPC_DAC, &DAC_ConverterConfigStruct);
-
-    // Enable GPDMA channel 0
-    GPDMA_ChannelCmd(0, ENABLE); // TODO: Check if it can be moved into `gpdma_setup()`
 
     // -------- PREPARE DISPLAY --------
     oled_clearScreen(OLED_COLOR_BLACK);
     oled_putString(1,1, (uint8_t*)"Freq: ", OLED_COLOR_WHITE, OLED_COLOR_BLACK);
-    int_to_string(rotary_number, rotary_number_buf, 10, 10);
-    oled_putString((1+6*6),1, rotary_number_buf, OLED_COLOR_WHITE, OLED_COLOR_BLACK);
+    int_to_string(wave_frequency, wave_frequency_text, 10, 10);
+    oled_putString((1+6*6),1, wave_frequency_text, OLED_COLOR_WHITE, OLED_COLOR_BLACK);
 
     // TODO: Better name for these variables?
     int led_counter = 0;
     int led_index = 0;
-    led_update(led_index);
 
     while (1) {
         bool frequency_changed = false;
@@ -110,17 +98,17 @@ int main() {
         }
 
         if (button_left_is_pressed()) {
-            lut_fill_with_zeroes();
+            lut_fill_with_zeroes(wave_lut);
         }
         if (button_right_is_pressed()) {
-            lut_fill_with_sine();
+            lut_fill_with_sine(wave_lut);
         }
 
-        led_counter++;
+        led_counter += 10;
 
         if (led_counter % (WAVE_FREQUENCY_MAX - wave_frequency) == 0) {
             led_index++;
-            led_update(led_index);
+            set_leds_cyclic(led_index);
         }
 
         Timer0_Wait(1);

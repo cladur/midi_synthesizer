@@ -1,6 +1,12 @@
 #include "utils.h"
 
+#include "lpc17xx_dac.h"
+
+#include <stddef.h>
+
 #include "pca9532.h"
+
+#define PCLK_DAC_IN_MHZ         25 //CCLK divided by 4
 
 void lut_fill_with_sine(uint32_t *wave_lut) {
     uint32_t sin_0_to_90_16_samples[16]={\
@@ -34,7 +40,7 @@ void lut_fill_with_sine(uint32_t *wave_lut) {
 }
 
 void lut_fill_with_zeroes(uint32_t *wave_lut) {
-    for(uint32_t i=0;i<NUM_SINE_SAMPLE;i++)
+    for(uint32_t i=0;i<WAVE_SAMPLES_COUNT;i++)
     {
         wave_lut[i] = 0;
     }
@@ -106,7 +112,7 @@ void led_update(int led) {
  * @return  None
  */
 void dac_update_frequency(uint32_t freq) {
-    uint32_t tmp = (PCLK_DAC_IN_MHZ * 1000000) / (freq * NUM_SINE_SAMPLE);
+    uint32_t tmp = (PCLK_DAC_IN_MHZ * 1000000) / (freq * WAVE_SAMPLES_COUNT);
     DAC_SetDMATimeOut(LPC_DAC, tmp);
 }
 
@@ -115,7 +121,7 @@ void dac_update_frequency(uint32_t freq) {
  * @return  bool    true if left button is pressed, false if it's not
  */
 bool button_left_is_pressed() {
-    !((GPIO_ReadValue(0) >> 4) & 0x01);
+    return !((GPIO_ReadValue(0) >> 4) & 0x01);
 }
 
 /*
@@ -123,5 +129,5 @@ bool button_left_is_pressed() {
  * @return  bool    true if right button is pressed, false if it's not
  */
 bool button_right_is_pressed() {
-    !((GPIO_ReadValue(1) >> 31) & 0x01);
+    return !((GPIO_ReadValue(1) >> 31) & 0x01);
 }
