@@ -22,6 +22,7 @@
 #define WAVE_FREQUENCY_INITIAL  440
 #define WAVE_FREQUENCY_MIN      10
 #define WAVE_FREQUENCY_MAX      800
+#define LIGHT_MODE_THRESHOLD    200
 
 // -------- VARIABLES FOR PROGRAM STATE --------
 uint16_t wave_frequency = WAVE_FREQUENCY_INITIAL;
@@ -35,34 +36,49 @@ uint32_t wave_lut[WAVE_SAMPLES_COUNT] = {0};
 // We can't just use them and let them be freed when they get out of scope
 GPDMA_Channel_CFG_Type GPDMACfg;
 GPDMA_LLI_Type DMA_LLI_Struct;
+DAC_CONVERTER_CFG_Type DAC_ConverterConfigStruct;
+
+void refresh_screen(bool is_dark_mode) {
+    int background_color = is_dark_mode ? OLED_COLOR_BLACK : OLED_COLOR_WHITE;
+    int foreground_color = is_dark_mode ? OLED_COLOR_WHITE : OLED_COLOR_BLACK;
+    oled_clearScreen(background_color);
+    oled_putString(1,1, (uint8_t*)"Freq: ", foreground_color, background_color);
+    int_to_string(wave_frequency, wave_frequency_text, 10, 10);
+    oled_putString((1+6*6),1, wave_frequency_text, foreground_color, background_color);
+}
 
 int main() {
     // -------- INITIALIZE PERIPHERALS --------
     init_i2c();
-    init_uart();
+    // init_uart();
     init_ssp();
     init_adc();
+    init_amplifier(false); //need to be in that order
     init_dac();
 
     rotary_init();
     oled_init();
     pca9532_init();
 
-    // -------- SETUP DAC - DMA TRANSFER --------
-    dac_dma_setup(&GPDMACfg, &DMA_LLI_Struct, wave_lut, DMA_SIZE);
+    light_init();
+    light_enable();
+    light_setRange(LIGHT_RANGE_4000);
 
     lut_fill_with_sine(wave_lut);
-    dac_update_frequency(wave_frequency);
 
-    // -------- PREPARE DISPLAY --------
-    oled_clearScreen(OLED_COLOR_BLACK);
-    oled_putString(1,1, (uint8_t*)"Freq: ", OLED_COLOR_WHITE, OLED_COLOR_BLACK);
-    int_to_string(wave_frequency, wave_frequency_text, 10, 10);
-    oled_putString((1+6*6),1, wave_frequency_text, OLED_COLOR_WHITE, OLED_COLOR_BLACK);
-
+    // -------- SETUP DAC - DMA TRANSFER --------
+    dac_dma_setup(&GPDMACfg, &DMA_LLI_Struct, &DAC_ConverterConfigStruct, wave_lut, DMA_SIZE, WAVE_FREQUENCY_INITIAL);
+    
     // TODO: Better name for these variables?
     int led_counter = 0;
     int led_index = 0;
+
+    int background_color = OLED_COLOR_BLACK;
+    int foreground_color = OLED_COLOR_WHITE;
+    bool is_dark_mode = light_read() < LIGHT_MODE_THRESHOLD;
+
+    // -------- PREPARE DISPLAY --------
+    refresh_screen(is_dark_mode);
 
     while (1) {
         bool frequency_changed = false;
@@ -89,10 +105,13 @@ int main() {
         }
 
         if (frequency_changed) {
+            int background_color = is_dark_mode ? OLED_COLOR_BLACK : OLED_COLOR_WHITE;
+            int foreground_color = is_dark_mode ? OLED_COLOR_WHITE : OLED_COLOR_BLACK;
+
             // Write wave frequency on the screen
-            oled_fillRect((1+6*6),1, 80, 8, OLED_COLOR_BLACK);
+            oled_fillRect((1+6*6),1, 80, 8, background_color);
             int_to_string(wave_frequency, wave_frequency_text, 10, 10);
-            oled_putString((1+6*6),1, wave_frequency_text, OLED_COLOR_WHITE, OLED_COLOR_BLACK);
+            oled_putString((1+6*6),1, wave_frequency_text, foreground_color, background_color);
 
             dac_update_frequency(wave_frequency);
         }
@@ -102,6 +121,15 @@ int main() {
         }
         if (button_right_is_pressed()) {
             lut_fill_with_sine(wave_lut);
+        }
+
+        bool was_dark_mode = is_dark_mode;
+
+        int light_value = light_read();
+        is_dark_mode = light_value < LIGHT_MODE_THRESHOLD;
+
+        if (was_dark_mode != is_dark_mode) {
+            refresh_screen(is_dark_mode);
         }
 
         led_counter += 10;

@@ -131,3 +131,23 @@ bool button_left_is_pressed() {
 bool button_right_is_pressed() {
     return !((GPIO_ReadValue(1) >> 31) & 0x01);
 }
+
+void volume_up() {
+    GPIO_SetValue(0, 1<<28);
+    Timer0_Wait(1);
+    GPIO_SetValue(0, 1<<27);
+    Timer0_Wait(1);
+    GPIO_ClearValue(0, 1<<27);
+    Timer0_Wait(1);
+    GPIO_ClearValue(0, 1<<28);
+    Timer0_Wait(1);
+}
+
+void volume_down() {
+    GPIO_ClearValue(0, 1<<28);
+    Timer0_Wait(1);
+    GPIO_SetValue(0, 1<<27);
+    Timer0_Wait(1);
+    GPIO_ClearValue(0, 1<<27);
+    Timer0_Wait(1);
+}

@@ -10,6 +10,8 @@
 #include "lpc17xx_ssp.h"
 #include "lpc17xx_timer.h"
 
+#include "utils.h"
+
 #define UART_DEV LPC_UART3
 
 void init_uart() {
@@ -114,17 +116,6 @@ void init_adc() {
 }
 
 void init_dac() {
-    GPIO_SetDir(2, 1<<0, 1); //GPIO_28
-    GPIO_SetDir(2, 1<<1, 1); //GPIO_29
-
-    GPIO_SetDir(0, 1<<27, 1); // PIO3_0 GPIO_21
-    GPIO_SetDir(0, 1<<28, 1); // PIO3_1 GPIO_22
-    GPIO_SetDir(2, 1<<13, 1); // PIO2_13 GPIO_23
-    GPIO_SetDir(0, 1<<26, 1); // GPIO_14 DAC OUTPUT
-
-    GPIO_ClearValue(0, 1<<27); //LM4811-clk AMP clock
-    GPIO_ClearValue(0, 1<<28); //LM4811-up/dn AMP digital control signal
-    GPIO_ClearValue(2, 1<<13); //LM4811-shutdn AMP shutdown control signal
     /*
      * Init DAC pin connect
      * AOUT on P0.26
@@ -140,9 +131,32 @@ void init_dac() {
     DAC_Init(LPC_DAC);
 }
 
+void init_amplifier(bool start_muted) {
+    GPIO_SetDir(2, 1<<0, 1); //GPIO_28
+    GPIO_SetDir(2, 1<<1, 1); //GPIO_29
 
+    GPIO_SetDir(0, 1<<27, 1); // PIO3_0 GPIO_21
+    GPIO_SetDir(0, 1<<28, 1); // PIO3_1 GPIO_22
+    GPIO_SetDir(2, 1<<13, 1); // PIO2_13 GPIO_23
+    GPIO_SetDir(0, 1<<26, 1); // GPIO_14 DAC OUTPUT
 
-void dac_dma_setup(GPDMA_LLI_Type* DMA_LLI_Struct, GPDMA_Channel_CFG_Type* GPDMACfg, uint32_t* dac_wave_lut, uint32_t dma_size) {
+    GPIO_ClearValue(0, 1<<27); //LM4811-clk AMP clock
+    GPIO_ClearValue(0, 1<<28); //LM4811-up/dn AMP digital control signal
+    GPIO_ClearValue(2, 1<<13); //LM4811-shutdn AMP shutdown control signal
+
+    // if (start_muted) {
+    //     // Set volume to the lowest value
+    //     for (int i = 0; i < 16; i++) {
+    //         volume_down();
+    //     }
+    // } else {
+    //     for (int i = 0; i < 16; i++) {
+    //         volume_up();
+    //     }
+    // }
+}
+
+void dac_dma_setup(GPDMA_LLI_Type* DMA_LLI_Struct, GPDMA_Channel_CFG_Type* GPDMACfg, DAC_CONVERTER_CFG_Type* DAC_ConverterConfigStruct, uint32_t* dac_wave_lut, uint32_t dma_size, uint32_t initial_wave_frequency) {
     /* GPDMA block section -------------------------------------------- */
     /* Initialize GPDMA controller */
     GPDMA_Init();
@@ -179,10 +193,10 @@ void dac_dma_setup(GPDMA_LLI_Type* DMA_LLI_Struct, GPDMA_Channel_CFG_Type* GPDMA
     // Setup channel with given parameter
     GPDMA_Setup(GPDMACfg);
 
-    DAC_CONVERTER_CFG_Type DAC_ConverterConfigStruct;
-    DAC_ConverterConfigStruct.CNT_ENA = SET;
-    DAC_ConverterConfigStruct.DMA_ENA = SET;
-    DAC_ConfigDAConverterControl(LPC_DAC, &DAC_ConverterConfigStruct);
+    DAC_ConverterConfigStruct->CNT_ENA = SET;
+    DAC_ConverterConfigStruct->DMA_ENA = SET;
+    dac_update_frequency(initial_wave_frequency);
+    DAC_ConfigDAConverterControl(LPC_DAC, DAC_ConverterConfigStruct);
 
     // Enable GPDMA channel 0
     GPDMA_ChannelCmd(0, ENABLE);

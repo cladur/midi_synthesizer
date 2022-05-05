@@ -14,5 +14,7 @@ void led_update(int led);
 void dac_update_frequency(uint32_t freq);
 bool button_left_is_pressed();
 bool button_right_is_pressed();
+void volume_up();
+void volume_down();
 
 #endif

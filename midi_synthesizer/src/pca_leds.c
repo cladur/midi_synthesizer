@@ -5,6 +5,11 @@
 uint16_t ledOn = 0;
 uint16_t ledOff = 0xFFFF;
 
+/**
+ * @brief Set led states based on current iteration to create cyclicaly moving single led pattern
+ * 
+ * @param iteration
+ */
 void set_leds_cyclic(int iteration) {
     ledOff = ledOn; // turn off leds from prevoius iteration
     uint8_t led_index = iteration % 8;
@@ -15,6 +20,12 @@ void set_leds_cyclic(int iteration) {
     pca9532_setLeds(ledOn, ledOff); 
 }
 
+/**
+ * @brief fill less significnt bits ones
+ * 
+ * @param wave_height number of ones to fill value with
+ * @return uint8_t 
+ */
 uint8_t wave_to_led(uint8_t wave_height) {
     uint8_t led_wave = 0;
     for (int i = 0; i < wave_height; i++) {
@@ -24,6 +35,11 @@ uint8_t wave_to_led(uint8_t wave_height) {
     return led_wave;
 }
 
+/**
+ * @brief Set red leds to represent current wave and green leds to represent previous wave
+ * 
+ * @param wave current wave value
+ */
 void set_leds_wave(uint8_t wave) {
     ledOff = ledOn; // turn off leds from previous iteration
     uint8_t wave_height = wave / 32;

@@ -1,0 +1,34 @@
+#include "pca_leds.h"
+
+#include "pca9532.h"
+
+uint16_t ledOn = 0;
+uint16_t ledOff = 0xFFFF;
+
+void set_leds_cyclic(int iteration) {
+    ledOff = ledOn; // turn off leds from prevoius iteration
+    uint8_t led_index = iteration % 8;
+    uint8_t direction = ((iteration % 16) < 8) ? 1 : 0;
+    uint16_t high = (1 << (direction ? (15 - led_index) : (led_index + 8))) & 0xFF00; // green leds
+    uint16_t low = (1 << (direction ? led_index : (7 - led_index))) & 0xFF; // red leds
+    ledOn = low + high;
+    pca9532_setLeds(ledOn, ledOff); 
+}
+
+uint8_t wave_to_led(uint8_t wave) {
+    uint8_t led_wave = 0;
+    for (int i = 0; i < wave; i++) {
+        led_wave++;
+        led_wave <<= 1;
+    }
+    return led_wave;
+}
+
+void set_leds_wave(uint8_t wave) {
+    ledOff = ledOn; // turn off leds from prevoius iteration
+    uint8_t wave = wave / 32;
+    ledOn <<= 8; // move wave from previous iteration to green leds
+    ledOn &= 0xFF00; // mask just to be sure
+    ledOn += wave_to_led(wave);
+    pca9532_setLeds(ledOn, ledOff);
+}
