@@ -103,7 +103,7 @@ void led_update(int led) {
 
     ledOn = ledOn << (led % 8);
 
-    pca9532_setLeds(ledOn, 0xffff);   
+    pca9532_setLeds(ledOn, 0xffff);
 }
 
 /*

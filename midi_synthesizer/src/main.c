@@ -13,10 +13,13 @@
 #include "oled.h"
 #include "rgb.h"
 #include "pca9532.h"
+#include "joystick.h"
 
 #include "inits.h"
 #include "utils.h"
 #include "pca_leds.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 #define DMA_SIZE                60
 #define WAVE_FREQUENCY_INITIAL  440
@@ -59,6 +62,7 @@ int main() {
     rotary_init();
     oled_init();
     pca9532_init();
+    joystick_init();
 
     light_init();
     light_enable();
@@ -68,7 +72,7 @@ int main() {
 
     // -------- SETUP DAC - DMA TRANSFER --------
     dac_dma_setup(&GPDMACfg, &DMA_LLI_Struct, &DAC_ConverterConfigStruct, wave_lut, DMA_SIZE, WAVE_FREQUENCY_INITIAL);
-    
+
     // TODO: Better name for these variables?
     int led_counter = 0;
     int led_index = 0;
@@ -80,28 +84,61 @@ int main() {
     // -------- PREPARE DISPLAY --------
     refresh_screen(is_dark_mode);
 
+
+    // number of options
+    const uint8_t MENU_OPTIONS = 2;
+    // index of currently selected menu option
+    uint8_t current_option = 0;
+
+    uint8_t rotary_direction = 0;
+
     while (1) {
         bool frequency_changed = false;
+        bool volume_changed = false;
 
+        uint8_t joystick_value = joystick_read();
         uint8_t rotary_value = rotary_read();
+
+        if ((joystick_value & JOYSTICK_UP) != 0) {
+            current_option = (++current_option) % MENU_OPTIONS;
+        }
+        if ((joystick_value & JOYSTICK_DOWN) != 0) {
+            current_option = (--current_option) % MENU_OPTIONS;
+        }
+
         switch (rotary_value) {
             case ROTARY_RIGHT: {
-                if (wave_frequency < WAVE_FREQUENCY_MAX) {
-                    wave_frequency += 10;
-                    frequency_changed = true;
-                }
+                rotary_direction = 1;
                 break;
             }
             case ROTARY_LEFT: {
-                if (wave_frequency > WAVE_FREQUENCY_MIN) {
-                    wave_frequency -= 10;
-                    frequency_changed = true;
-                }
+                rotary_direction = -1;
                 break;
             }
             default: {
+                rotary_direction = 0;
                 break;
             }
+        }
+
+        // TODO maybe move blocks inside cases to functions
+        switch (current_option) {
+            case 0:
+                wave_frequency += 10 * rotary_direction;
+                frequency_changed = rotary_direction;
+                break;
+            case 1:
+                if (rotary_direction == 1) {
+                    volume_up();
+                    volume_changed = true;
+                }
+                if (rotary_direction == -1) {
+                    volume_down();
+                    volume_changed = true;
+                }
+                break;
+            default:
+                break;
         }
 
         if (frequency_changed) {
@@ -114,6 +151,16 @@ int main() {
             oled_putString((1+6*6),1, wave_frequency_text, foreground_color, background_color);
 
             dac_update_frequency(wave_frequency);
+        }
+
+        if (volume_changed) {
+            int background_color = is_dark_mode ? OLED_COLOR_BLACK : OLED_COLOR_WHITE;
+            int foreground_color = is_dark_mode ? OLED_COLOR_WHITE : OLED_COLOR_BLACK;
+
+            // TODO substitute for volume related values
+            //oled_fillRect((1+6*6),2, 80, 8, background_color);
+            //int_to_string(wave_frequency, wave_frequency_text, 10, 10);
+            //oled_putString((1+6*6),1, wave_frequency_text, foreground_color, background_color);
         }
 
         if (button_left_is_pressed()) {
