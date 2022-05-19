@@ -201,3 +201,12 @@ void dac_dma_setup(GPDMA_LLI_Type* DMA_LLI_Struct, GPDMA_Channel_CFG_Type* GPDMA
     // Enable GPDMA channel 0
     GPDMA_ChannelCmd(0, ENABLE);
 }
+
+void reset_volume(int volume_level) {
+    for (int i = 0; i < 15; i++) {
+        volume_down();
+    }
+    for (int i = 0; i < volume_level; i ++) {
+        volume_up();
+    }
+}

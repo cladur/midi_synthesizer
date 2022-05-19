@@ -8,6 +8,9 @@
 
 #define PCLK_DAC_IN_MHZ         25 //CCLK divided by 4
 
+#define max(a,b) ({a > b ? a : b;})
+#define min(a,b) ({a < b ? a : b;})
+
 void lut_fill_with_sine(uint32_t *wave_lut) {
     uint32_t sin_0_to_90_16_samples[16]={\
             0,1045,2079,3090,4067,\

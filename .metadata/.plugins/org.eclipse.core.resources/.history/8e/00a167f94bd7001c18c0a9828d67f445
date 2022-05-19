@@ -4,7 +4,6 @@
 
 #include "rgb.h"
 
-/*
 int main(void) {
 
   uint8_t r = 0;
@@ -22,4 +21,3 @@ int main(void) {
     }
   }
 }
-*/
