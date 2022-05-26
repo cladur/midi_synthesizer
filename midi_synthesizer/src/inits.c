@@ -14,7 +14,7 @@
 
 #define UART_DEV LPC_UART3
 
-void init_uart() {
+void init_uart(void) {
     PINSEL_CFG_Type PinCfg;
     UART_CFG_Type uartCfg;
 
@@ -37,7 +37,7 @@ void init_uart() {
 
 }
 
-void init_i2c() {
+void init_i2c(void) {
     PINSEL_CFG_Type PinCfg;
 
     /* Initialize I2C2 pin connect */
@@ -56,7 +56,7 @@ void init_i2c() {
 }
 
 
-void init_ssp() {
+void init_ssp(void) {
     SSP_CFG_Type SSP_ConfigStruct;
     PINSEL_CFG_Type PinCfg;
 
@@ -92,7 +92,7 @@ void init_ssp() {
 
 }
 
-void init_adc() {
+void init_adc(void) {
     PINSEL_CFG_Type PinCfg;
 
     /*
@@ -115,7 +115,7 @@ void init_adc() {
     ADC_ChannelCmd(LPC_ADC,ADC_CHANNEL_0,ENABLE);
 }
 
-void init_dac() {
+void init_dac(void) {
     /*
      * Init DAC pin connect
      * AOUT on P0.26
@@ -131,18 +131,18 @@ void init_dac() {
     DAC_Init(LPC_DAC);
 }
 
-void init_amplifier(bool start_muted) {
-    GPIO_SetDir(2, 1<<0, 1); //GPIO_28
-    GPIO_SetDir(2, 1<<1, 1); //GPIO_29
+void init_amplifier(void) {
+    GPIO_SetDir(2, 1UL<<0, 1); //GPIO_28
+    GPIO_SetDir(2, 1UL<<1, 1); //GPIO_29
 
-    GPIO_SetDir(0, 1<<27, 1); // PIO3_0 GPIO_21
-    GPIO_SetDir(0, 1<<28, 1); // PIO3_1 GPIO_22
-    GPIO_SetDir(2, 1<<13, 1); // PIO2_13 GPIO_23
-    GPIO_SetDir(0, 1<<26, 1); // GPIO_14 DAC OUTPUT
+    GPIO_SetDir(0, 1UL<<27, 1); // PIO3_0 GPIO_21
+    GPIO_SetDir(0, 1UL<<28, 1); // PIO3_1 GPIO_22
+    GPIO_SetDir(2, 1UL<<13, 1); // PIO2_13 GPIO_23
+    GPIO_SetDir(0, 1UL<<26, 1); // GPIO_14 DAC OUTPUT
 
-    GPIO_ClearValue(0, 1<<27); //LM4811-clk AMP clock
-    GPIO_ClearValue(0, 1<<28); //LM4811-up/dn AMP digital control signal
-    GPIO_ClearValue(2, 1<<13); //LM4811-shutdn AMP shutdown control signal
+    GPIO_ClearValue(0, 1UL<<27); //LM4811-clk AMP clock
+    GPIO_ClearValue(0, 1UL<<28); //LM4811-up/dn AMP digital control signal
+    GPIO_ClearValue(2, 1UL<<13); //LM4811-shutdn AMP shutdown control signal
 
     // if (start_muted) {
     //     // Set volume to the lowest value
@@ -162,20 +162,20 @@ void dac_dma_setup(GPDMA_LLI_Type* DMA_LLI_Struct, GPDMA_Channel_CFG_Type* GPDMA
     GPDMA_Init();
 
     //Prepare DMA link list item structure
-    DMA_LLI_Struct->SrcAddr= (uint32_t)dac_wave_lut;
+    DMA_LLI_Struct->SrcAddr= dac_wave_lut; // This line will either trigger warning from compiler or MISRA :(
     DMA_LLI_Struct->DstAddr= (uint32_t)&(LPC_DAC->DACR);
     DMA_LLI_Struct->NextLLI= (uint32_t)DMA_LLI_Struct;
     DMA_LLI_Struct->Control= dma_size
-                            | (2<<18) //source width 32 bit
-                            | (2<<21) //dest. width 32 bit
-                            | (1<<26) //source increment
+                            | (2UL<<18) //source width 32 bit
+                            | (2UL<<21) //dest. width 32 bit
+                            | (1UL<<26) //source increment
                             ;
 
     // Setup GPDMA channel --------------------------------
     // channel 0
     GPDMACfg->ChannelNum = 0;
     // Source memory
-    GPDMACfg->SrcMemAddr = (uint32_t)(dac_wave_lut);
+    GPDMACfg->SrcMemAddr = dac_wave_lut;
     // Destination memory - unused
     GPDMACfg->DstMemAddr = 0;
     // Transfer size
@@ -200,13 +200,4 @@ void dac_dma_setup(GPDMA_LLI_Type* DMA_LLI_Struct, GPDMA_Channel_CFG_Type* GPDMA
 
     // Enable GPDMA channel 0
     GPDMA_ChannelCmd(0, ENABLE);
-}
-
-void reset_volume(int volume_level) {
-    for (int i = 0; i < 15; i++) {
-        volume_down();
-    }
-    for (int i = 0; i < volume_level; i ++) {
-        volume_up();
-    }
 }

@@ -10,10 +10,11 @@
 
 #include "rotary.h"
 #include "light.h"
-#include "oled.h"
 #include "rgb.h"
 #include "pca9532.h"
 #include "joystick.h"
+#include "eeprom.h"
+#include "oled.h"
 
 #include "inits.h"
 #include "utils.h"
@@ -27,95 +28,45 @@
 #define WAVE_FREQUENCY_MAX      800
 #define LIGHT_MODE_THRESHOLD    200
 
+#define VOLUME_INITIAL          10
 #define VOLUME_MIN              0
 #define VOLUME_MAX              15
 
+#define UART_DEV LPC_UART3
+
+// Forward declarations to comply with MISRA 2012 8.4 rule.
+// ....
+
 // -------- VARIABLES FOR PROGRAM STATE --------
-uint16_t wave_frequency = WAVE_FREQUENCY_INITIAL;
-// Buffer for storing wave frequency value in text form.
-// Used for printing onto the display.
-uint8_t wave_frequency_text[10] = {0};
-uint8_t volume_level = 10; // TODO: Reset volume level every time to this value
-uint8_t volume_level_text[10] = {0};
-// Lookup table for DAC.
-uint32_t wave_lut[WAVE_SAMPLES_COUNT] = {0};
+// These structs need to be global, if we put them inside main() they will not work.
+// MISRA will complain about this (rule 8.9), saying that we should put them inside
+// main(), but we can't do that.
+static GPDMA_Channel_CFG_Type GPDMACfg = {0};
+static GPDMA_LLI_Type DMA_LLI_Struct = {0};
+static DAC_CONVERTER_CFG_Type DAC_ConverterConfigStruct = {0};
 
-// These structs need to be valid for the entire duration of the program
-// We can't just use them and let them be freed when they get out of scope
-GPDMA_Channel_CFG_Type GPDMACfg;
-GPDMA_LLI_Type DMA_LLI_Struct;
-DAC_CONVERTER_CFG_Type DAC_ConverterConfigStruct;
-
-enum MenuEntries {
-    MENU_ENTRY_FREQUENCY,
-    MENU_ENTRY_VOLUME,
-    MENU_ENTRY_COUNT,
+struct EepromData {
+    int wave_frequency;
+    int volume_level;
 };
 
-void redraw_frequency(bool is_dark_mode, bool is_active) {
-    int foreground_color, background_color;
-    if (is_dark_mode ^ is_active) {
-        foreground_color = OLED_COLOR_WHITE;
-        background_color = OLED_COLOR_BLACK;
-    } else {
-        foreground_color = OLED_COLOR_BLACK;
-        background_color = OLED_COLOR_WHITE;
-    }
-    oled_fillRect(0, 0, 100, 9, background_color);
-    oled_putString(1,1, (uint8_t*)"Freq: ", foreground_color, background_color);
-    int_to_string(wave_frequency, wave_frequency_text, 10, 10);
-    oled_putString((1+6*6),1, wave_frequency_text, foreground_color, background_color);
-}
+int main(void) {
+    // Lookup table for DAC.
+    uint32_t wave_lut[WAVE_SAMPLES_COUNT] = {0};
 
-void redraw_volume(bool is_dark_mode, bool is_active) {
-    int foreground_color, background_color;
-    if (is_dark_mode ^ is_active) {
-        foreground_color = OLED_COLOR_WHITE;
-        background_color = OLED_COLOR_BLACK;
-    } else {
-        foreground_color = OLED_COLOR_BLACK;
-        background_color = OLED_COLOR_WHITE;
-    }
-    oled_fillRect(0, 10, 100, 18, background_color);
-    oled_putString(1, 10, (uint8_t*)"Vol: ", foreground_color, background_color);
-    int_to_string(volume_level, volume_level_text, 10, 10);
-    oled_putString((1+6*6),10, volume_level_text, foreground_color, background_color);
-}
-
-enum WhatToRedraw {
-    REDRAW_FREQUENCY = 0x01,
-    REDRAW_VOLUME    = 0x02,
-    REDRAW_ALL       = 0x03,
-};
-
-void refresh_screen(bool is_dark_mode, bool dark_mode_changed, uint8_t active_menu_entry, enum WhatToRedraw what_to_redraw) {
-    // TODO: Don't clear the screen if light / dark mode didn't change
-    if (dark_mode_changed) {
-        oled_clearScreen(is_dark_mode ? OLED_COLOR_BLACK : OLED_COLOR_WHITE);
-    }
-    if (what_to_redraw & REDRAW_FREQUENCY) {
-        redraw_frequency(is_dark_mode, active_menu_entry == MENU_ENTRY_FREQUENCY);
-    }
-    if (what_to_redraw & REDRAW_VOLUME) {
-        redraw_volume(is_dark_mode, active_menu_entry == MENU_ENTRY_VOLUME);
-    }
-}
-
-int main() {
     // -------- INITIALIZE PERIPHERALS --------
     init_i2c();
-    // init_uart();
     init_ssp();
+    init_uart();
     init_adc();
-    init_amplifier(false); //need to be in that order
+    init_amplifier(); //need to be in that order
     init_dac();
-    reset_volume(volume_level);
-
 
     rotary_init();
     oled_init();
     pca9532_init();
     joystick_init();
+    eeprom_init();
 
     light_init();
     light_enable();
@@ -123,20 +74,41 @@ int main() {
 
     lut_fill_with_sine(wave_lut);
 
+    // Read data from EEPROM
+    struct EepromData eeprom_data = {0};
+    int eeprom_offset = 240;
+    int len = eeprom_read((uint8_t*)&eeprom_data, eeprom_offset, sizeof(eeprom_data));
+    if ((len != (int)sizeof(eeprom_data)) ||
+        (eeprom_data.wave_frequency < WAVE_FREQUENCY_MIN) || (eeprom_data.wave_frequency > WAVE_FREQUENCY_MAX) ||
+        (eeprom_data.volume_level < VOLUME_MIN) || (eeprom_data.volume_level > VOLUME_MAX))
+    {
+        UART_SendString(UART_DEV, (const uint8_t*)"EEPROM: Invalid data, using defaults\r\n");
+        eeprom_data.wave_frequency = WAVE_FREQUENCY_INITIAL;
+        eeprom_data.volume_level = VOLUME_INITIAL;
+    } else {
+        UART_SendString(UART_DEV, (const uint8_t*)"EEPROM: Data read succesfully\r\n");
+    }
+    int wave_frequency = eeprom_data.wave_frequency;
+    // Buffer for storing wave frequency value in text form.
+    // Used for printing onto the display.
+    int volume_level = eeprom_data.volume_level; // TODO: Reset volume level every time to this value
+
     // -------- SETUP DAC - DMA TRANSFER --------
-    dac_dma_setup(&GPDMACfg, &DMA_LLI_Struct, &DAC_ConverterConfigStruct, wave_lut, DMA_SIZE, WAVE_FREQUENCY_INITIAL);
+    dac_dma_setup(&DMA_LLI_Struct, &GPDMACfg, &DAC_ConverterConfigStruct, wave_lut, DMA_SIZE, wave_frequency);
+
+    reset_volume(volume_level);
 
     // TODO: Better name for these variables?
     int led_counter = 0;
-    int led_index = 0;
+    unsigned int led_index = 0;
 
     bool is_dark_mode = light_read() < LIGHT_MODE_THRESHOLD;
 
     // index of currently selected menu option
-    uint8_t active_menu_entry = 0;
+    enum MenuEntry active_menu_entry = MENU_ENTRY_FREQUENCY;
 
     // -------- PREPARE DISPLAY --------
-    refresh_screen(is_dark_mode, true, active_menu_entry, REDRAW_ALL);
+    refresh_screen(is_dark_mode, true, wave_frequency, volume_level, active_menu_entry, REDRAW_ALL);
 
     while (1) {
         bool frequency_changed = false;
@@ -145,17 +117,19 @@ int main() {
         uint8_t joystick_value = joystick_read();
         uint8_t rotary_value = rotary_read();
 
-        uint8_t last_active_menu_entry = active_menu_entry;
+        enum MenuEntry last_active_menu_entry = active_menu_entry;
 
-        if (joystick_value & JOYSTICK_UP) {
-            active_menu_entry = (++active_menu_entry) % MENU_ENTRY_COUNT;
+        if (BITWISE_AND(joystick_value, JOYSTICK_UP)) {
+            active_menu_entry++;
+            active_menu_entry = (active_menu_entry) % MENU_ENTRY_COUNT;
         }
-        if (joystick_value & JOYSTICK_DOWN) {
-            active_menu_entry = (--active_menu_entry) % MENU_ENTRY_COUNT;
+        if (BITWISE_AND(joystick_value, JOYSTICK_DOWN)) {
+            active_menu_entry--;
+            active_menu_entry = (active_menu_entry) % MENU_ENTRY_COUNT;
         }
 
         if (active_menu_entry != last_active_menu_entry) {
-            refresh_screen(is_dark_mode, false, active_menu_entry, REDRAW_ALL);
+            refresh_screen(is_dark_mode, false, wave_frequency, volume_level, active_menu_entry, REDRAW_ALL);
         }
 
         // TODO maybe move blocks inside cases to functions
@@ -171,21 +145,25 @@ int main() {
                         wave_frequency += 10;
                     }
                     frequency_changed = true;
+                } else {
+                    // If there was no rotary movement, we don't do anything.
                 }
                 break;
             case MENU_ENTRY_VOLUME:
                 if (rotary_value == ROTARY_LEFT) {
-                    volume_down();
                     if (volume_level > VOLUME_MIN) {
                         volume_level -= 1;
+                        volume_down();
                     }
                     volume_changed = true;
                 } else if (rotary_value == ROTARY_RIGHT) {
-                    volume_up();
                     if (volume_level < VOLUME_MAX) {
                         volume_level += 1;
+                        volume_up();
                     }
                     volume_changed = true;
+                } else {
+                    // If there was no rotary movement, we don't do anything.
                 }
                 break;
             default:
@@ -193,13 +171,25 @@ int main() {
         }
 
         if (frequency_changed) {
-            refresh_screen(is_dark_mode, false, active_menu_entry, REDRAW_FREQUENCY);
+            refresh_screen(is_dark_mode, false, wave_frequency, volume_level, active_menu_entry, REDRAW_FREQUENCY);
 
             dac_update_frequency(wave_frequency);
+
+            eeprom_data.wave_frequency = wave_frequency;
+            len = eeprom_write((uint8_t*)&eeprom_data, eeprom_offset, sizeof(eeprom_data));
+            if (len != (int)sizeof(eeprom_data)) {
+                UART_SendString(UART_DEV, (const uint8_t*)"EEPROM: Failed to write data\r\n");
+            }
         }
 
         if (volume_changed) {
-            refresh_screen(is_dark_mode, false, active_menu_entry, REDRAW_VOLUME);
+            refresh_screen(is_dark_mode, false, wave_frequency, volume_level, active_menu_entry, REDRAW_VOLUME);
+
+            eeprom_data.volume_level = volume_level;
+            len = eeprom_write((uint8_t*)&eeprom_data, eeprom_offset, sizeof(eeprom_data));
+            if (len != (int)sizeof(eeprom_data)) {
+                UART_SendString(UART_DEV, (const uint8_t*)"EEPROM: Failed to write data\r\n");
+            }
         }
 
         if (button_left_is_pressed()) {
@@ -215,7 +205,7 @@ int main() {
         is_dark_mode = light_value < LIGHT_MODE_THRESHOLD;
 
         if (was_dark_mode != is_dark_mode) {
-            refresh_screen(is_dark_mode, true, active_menu_entry, REDRAW_ALL);
+            refresh_screen(is_dark_mode, true, wave_frequency, volume_level, active_menu_entry, REDRAW_ALL);
         }
 
         led_counter += 10;
