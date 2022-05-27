@@ -123,6 +123,11 @@ bool button_right_is_pressed(void) {
 // like they belong here instead and the place in which they are
 // used could change in the future.
 
+/**
+ * @brief   This function raises the volume of the speaker by one step.
+ *
+ * @return  None
+ */
 void volume_up(void) {
     GPIO_SetValue(0, 1UL<<28);
     Timer0_Wait(1);
@@ -134,6 +139,11 @@ void volume_up(void) {
     Timer0_Wait(1);
 }
 
+/**
+ * @brief   This function decreases the volume of the speaker by one step.
+ *
+ * @return  None
+ */
 void volume_down(void) {
     GPIO_ClearValue(0, 1UL<<28);
     Timer0_Wait(1);
