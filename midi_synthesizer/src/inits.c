@@ -115,6 +115,11 @@ void init_adc(void) {
     ADC_ChannelCmd(LPC_ADC,ADC_CHANNEL_0,ENABLE);
 }
 
+/**
+ * @brief Initialize DAC.
+ *
+ * @retval None
+ */
 void init_dac(void) {
     /*
      * Init DAC pin connect
@@ -131,31 +136,42 @@ void init_dac(void) {
     DAC_Init(LPC_DAC);
 }
 
+/**
+ * @brief Initialize the amplifier.
+ *
+ * @return None
+ */
 void init_amplifier(void) {
+    // these can probably be deleted
     GPIO_SetDir(2, 1UL<<0, 1); //GPIO_28
     GPIO_SetDir(2, 1UL<<1, 1); //GPIO_29
+    // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    GPIO_SetDir(0, 1UL<<27, 1); // PIO3_0 GPIO_21
-    GPIO_SetDir(0, 1UL<<28, 1); // PIO3_1 GPIO_22
-    GPIO_SetDir(2, 1UL<<13, 1); // PIO2_13 GPIO_23
-    GPIO_SetDir(0, 1UL<<26, 1); // GPIO_14 DAC OUTPUT
+    GPIO_SetDir(0, 1UL<<27, 1); // PIO3_0 GPIO_21, set to OUTPUT
+    GPIO_SetDir(0, 1UL<<28, 1); // PIO3_1 GPIO_22, set to OUTPUT
+    GPIO_SetDir(2, 1UL<<13, 1); // PIO2_13 GPIO_23, set to OUTPUT
+    GPIO_SetDir(0, 1UL<<26, 1); // GPIO_14 DAC OUTPUT, set to OUTPUT
 
     GPIO_ClearValue(0, 1UL<<27); //LM4811-clk AMP clock
     GPIO_ClearValue(0, 1UL<<28); //LM4811-up/dn AMP digital control signal
     GPIO_ClearValue(2, 1UL<<13); //LM4811-shutdn AMP shutdown control signal
-
-    // if (start_muted) {
-    //     // Set volume to the lowest value
-    //     for (int i = 0; i < 16; i++) {
-    //         volume_down();
-    //     }
-    // } else {
-    //     for (int i = 0; i < 16; i++) {
-    //         volume_up();
-    //     }
-    // }
 }
 
+
+/**
+ * @brief Initialize DMA with given parameters.
+ *
+ * @note This function sets up the channel 0 of DMA and sends the values from the sine wave array to DAC.
+ *
+ * @param DMA_LLI_Struct                    Pointer to a DMA_LLI_Type structure
+ * @param GPDMACfg                          Pointer to a GPDMA_ChannelCFG_Type structure
+ * @param DAC_ConverterConfigStruct         Pointer to a DAC_CONVERTER_CFG_Type structure
+ * @param dac_wave_lut                      Pointer to an array of values
+ * @param dma_size                          Size of the array
+ * @param initial_wave_frequency            The default frequency of the sine wave
+ *
+ * @return None
+ */
 void dac_dma_setup(GPDMA_LLI_Type* DMA_LLI_Struct, GPDMA_Channel_CFG_Type* GPDMACfg, DAC_CONVERTER_CFG_Type* DAC_ConverterConfigStruct, uint32_t* dac_wave_lut, uint32_t dma_size, uint32_t initial_wave_frequency) {
     /* GPDMA block section -------------------------------------------- */
     /* Initialize GPDMA controller */

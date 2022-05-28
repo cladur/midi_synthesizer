@@ -91,8 +91,9 @@ void int_to_string(int value, uint8_t* pBuf, uint32_t len, uint32_t base) {
     }
 }
 
-/*
+/**
  * @brief   Change the frequency of the wave that's playing on the Speaker
+ * @note    The calculated value is clock ticks between samples
  * @param   freq    The new frequency of the wave in Hz
  * @return  None
  */
@@ -101,7 +102,7 @@ void dac_update_frequency(uint32_t freq) {
     DAC_SetDMATimeOut(LPC_DAC, tmp);
 }
 
-/*
+/**
  * @brief   Checks if the left button is pressed
  * @return  bool    true if left button is pressed, false if it's not
  */
@@ -109,7 +110,7 @@ bool button_left_is_pressed(void) {
     return !((GPIO_ReadValue(0) >> 4) & 0x01);
 }
 
-/*
+/**
  * @brief   Checks if the right button is pressed
  * @return  bool    true if right button is pressed, false if it's not
  */
@@ -153,6 +154,13 @@ void volume_down(void) {
     Timer0_Wait(1);
 }
 
+/**
+ * @brief   This funtion sets the volume of the speaker to the specified value.
+ *
+ * @param   volume    The exact value of the volume. Where 0 is the lowest and 15 is the highest.
+ *
+ * @return  None
+ */
 void reset_volume(int volume_level) {
     for (int i = 0; i < 15; i++) {
         volume_down();
