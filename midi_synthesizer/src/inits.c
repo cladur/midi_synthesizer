@@ -142,11 +142,6 @@ void init_dac(void) {
  * @return None
  */
 void init_amplifier(void) {
-    // these can probably be deleted
-    GPIO_SetDir(2, 1UL<<0, 1); //GPIO_28
-    GPIO_SetDir(2, 1UL<<1, 1); //GPIO_29
-    // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
     GPIO_SetDir(0, 1UL<<27, 1); // PIO3_0 GPIO_21, set to OUTPUT
     GPIO_SetDir(0, 1UL<<28, 1); // PIO3_1 GPIO_22, set to OUTPUT
     GPIO_SetDir(2, 1UL<<13, 1); // PIO2_13 GPIO_23, set to OUTPUT

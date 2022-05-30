@@ -210,7 +210,7 @@ int main(void) {
 
         led_counter += 10;
 
-        if (led_counter % (WAVE_FREQUENCY_MAX - wave_frequency) == 0) {
+        if (led_counter % (WAVE_FREQUENCY_MAX + 1 - wave_frequency) == 0) {
             led_index++;
             set_leds_cyclic(led_index);
         }
