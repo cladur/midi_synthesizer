@@ -13,12 +13,14 @@
 // Macro for '&' operator that is compliant with MISRA
 #define BITWISE_AND(x, y)      (((x) & (y)) == (y))
 
+// Used for referencing menu entries.
 enum MenuEntry {
     MENU_ENTRY_FREQUENCY,
     MENU_ENTRY_VOLUME,
     MENU_ENTRY_COUNT,
 };
 
+// Used for referencing menu entries, but in a way that doesn't isn't excluding one from the other.
 enum WhatToRedraw {
     REDRAW_FREQUENCY = 0x01,
     REDRAW_VOLUME    = 0x02,

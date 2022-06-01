@@ -13,6 +13,11 @@
 
 #define UART_DEV LPC_UART3
 
+/**
+ * @brief Initialize UART.
+ *
+ * @return None
+ */
 void init_uart(void) {
     PINSEL_CFG_Type PinCfg;
     UART_CFG_Type uartCfg;
@@ -36,6 +41,11 @@ void init_uart(void) {
 
 }
 
+/**
+ * @brief Initialize I2C.
+ *
+ * @return None
+ */
 void init_i2c(void) {
     PINSEL_CFG_Type PinCfg;
 
@@ -54,7 +64,11 @@ void init_i2c(void) {
     I2C_Cmd(LPC_I2C2, ENABLE);
 }
 
-
+/**
+ * @brief Initialize SSP.
+ *
+ * @return None
+ */
 void init_ssp(void) {
     SSP_CFG_Type SSP_ConfigStruct;
     PINSEL_CFG_Type PinCfg;
@@ -88,7 +102,6 @@ void init_ssp(void) {
 
     // Enable SSP peripheral
     SSP_Cmd(LPC_SSP1, ENABLE);
-
 }
 
 /**
@@ -127,7 +140,6 @@ void init_amplifier(void) {
     GPIO_ClearValue(0, 1UL<<28); //LM4811-up/dn AMP digital control signal
     GPIO_ClearValue(2, 1UL<<13); //LM4811-shutdn AMP shutdown control signal
 }
-
 
 /**
  * @brief Initialize DMA with given parameters.

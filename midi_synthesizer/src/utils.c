@@ -13,13 +13,23 @@
 // TODO: Move it back to main.c and parametrize lut_fill_with_... functions with it
 #define WAVE_SAMPLES_COUNT 60
 
+/**
+ * @brief Fills array with sine values.
+ *
+ * @note This function expects the array to hold at least 60 elements. Failing to do so will result in a segmentation fault.
+ *
+ * @param wave_lut Pointer to the array to fill.
+ *
+ * @return None
+ */
 void lut_fill_with_sine(uint32_t *wave_lut) {
+    // Array holding first quarter of sine values.
     uint32_t sin_0_to_90_16_samples[16]={\
             0,1045,2079,3090,4067,\
             5000,5877,6691,7431,8090,\
             8660,9135,9510,9781,9945,10000\
     };
-    //Prepare DAC sine look up table
+    // We write sine values to the wave_lut by transposing sin_0_to_90_16_samples.
     for(int i = 0; i < WAVE_SAMPLES_COUNT; i++)
     {
         if(i<=15)
@@ -46,6 +56,15 @@ void lut_fill_with_sine(uint32_t *wave_lut) {
 
 }
 
+/**
+ * @brief Fills array with zeroes.
+ *
+ * @note This function expects the array to hold at least 60 elements. Failing to do so will result in a segmentation fault.
+ *
+ * @param wave_lut Pointer to the array to fill.
+ *
+ * @return None
+ */
 void lut_fill_with_zeroes(uint32_t *wave_lut) {
     for(int i=0;i<WAVE_SAMPLES_COUNT;i++)
     {
@@ -53,6 +72,16 @@ void lut_fill_with_zeroes(uint32_t *wave_lut) {
     }
 }
 
+/**
+ * @brief Converts integer to string.
+ *
+ * @param value Integer to be converted to string.
+ * @param pBuf  Buffer to store the string.
+ * @param len   Length of the buffer.
+ * @param base  Base that we want to write the number in (for example 10 or 16).
+ *
+ * @return None
+ */
 void int_to_string(int value, uint8_t* pBuf, uint32_t len, uint32_t base) {
     static const char* pAscii = "0123456789abcdefghijklmnopqrstuvwxyz";
     int pos = 0;
@@ -170,6 +199,17 @@ void reset_volume(int volume_level) {
     }
 }
 
+/**
+ * @brief   Determines which color to use for background and foreground depending on whenever or not
+ *          we're using dark mode and if the menu entry is selected.
+ *
+ * @param   is_dark_mode        Is the dark mode enabled.
+ * @param   is_active           Is the menu entry currently selected.
+ * @param   foreground_color    Pointer to the variable that will hold the foreground color.
+ * @param   background_color    Pointer to the variable that will hold the background color.
+ *
+ * @return  None
+ */
 void what_colors_to_use(bool is_dark_mode, bool is_active, int* foreground_color, int* background_color) {
     if ((is_dark_mode ^ is_active) == true) {
         *foreground_color = OLED_COLOR_WHITE;
@@ -180,6 +220,15 @@ void what_colors_to_use(bool is_dark_mode, bool is_active, int* foreground_color
     }
 }
 
+/**
+ * @brief   Draws frequency menu entry on to the screen.
+ *
+ * @param   is_dark_mode        Is the dark mode enabled.
+ * @param   is_active           Is the menu entry currently selected.
+ * @param   wave_frequency      New value of wave frequency to be displayed.
+ *
+ * @return  None
+ */
 void redraw_frequency(bool is_dark_mode, bool is_active, int wave_frequency) {
     int foreground_color = 0;
     int background_color = 0;
@@ -192,6 +241,15 @@ void redraw_frequency(bool is_dark_mode, bool is_active, int wave_frequency) {
     oled_putString(1 + (6 * 6), 1, wave_frequency_text, foreground_color, background_color);
 }
 
+/**
+ * @brief   Draws volume menu entry on to the screen.
+ *
+ * @param   is_dark_mode        Is the dark mode enabled.
+ * @param   is_active           Is the menu entry currently selected.
+ * @param   volume_level        New value of volume level to be displayed.
+ *
+ * @return  None
+ */
 void redraw_volume(bool is_dark_mode, bool is_active, int volume_level) {
     int foreground_color = 0;
     int background_color = 0;
@@ -204,8 +262,18 @@ void redraw_volume(bool is_dark_mode, bool is_active, int volume_level) {
     oled_putString(1 + (6 * 6), 10, volume_level_text, foreground_color, background_color);
 }
 
+/**
+ * @brief   Redraws necessary part of the screen.
+ *
+ * @param   is_dark_mode        Is the dark mode enabled.
+ * @param   dark_mode_changed   Determines if we need to redraw the whole screen or only part of it.
+ * @param   new_frequency       New value of wave frequency to be displayed.
+ * @param   new_volume          New value of volume level to be displayed.
+ * @param   active_menu_entry   Currently selected menu entry.
+ *
+ * @return  None
+ */
 void refresh_screen(bool is_dark_mode, bool dark_mode_changed, int new_frequency, int new_volume, enum MenuEntry active_menu_entry, enum WhatToRedraw what_to_redraw) {
-    // TODO: Don't clear the screen if light / dark mode didn't change
     if (dark_mode_changed) {
         oled_clearScreen(is_dark_mode ? OLED_COLOR_BLACK : OLED_COLOR_WHITE);
     }

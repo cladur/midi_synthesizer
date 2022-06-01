@@ -21,20 +21,25 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// -------- AUDIO MACROS --------
 #define DMA_SIZE                60
 #define WAVE_FREQUENCY_INITIAL  440
 #define WAVE_FREQUENCY_MIN      10
 #define WAVE_FREQUENCY_MAX      800
-#define LIGHT_MODE_THRESHOLD    200
-
 #define VOLUME_INITIAL          10
 #define VOLUME_MIN              0
 #define VOLUME_MAX              15
 
+// -------- LIGHT MACROS --------
+#define LIGHT_MODE_THRESHOLD    200
+
 #define UART_DEV LPC_UART3
 
-// Forward declarations to comply with MISRA 2012 8.4 rule.
-// ....
+// Structure containing parameteres saved and read from EEPROM.
+struct EepromData {
+    int wave_frequency;
+    int volume_level;
+};
 
 // -------- VARIABLES FOR PROGRAM STATE --------
 // These structs need to be global, if we put them inside main() they will not work.
@@ -44,11 +49,6 @@ static GPDMA_Channel_CFG_Type GPDMACfg = {0};
 static GPDMA_LLI_Type DMA_LLI_Struct = {0};
 static DAC_CONVERTER_CFG_Type DAC_ConverterConfigStruct = {0};
 
-struct EepromData {
-    int wave_frequency;
-    int volume_level;
-};
-
 int main(void) {
     // Lookup table for DAC.
     uint32_t wave_lut[WAVE_SAMPLES_COUNT] = {0};
@@ -57,7 +57,8 @@ int main(void) {
     init_i2c();
     init_ssp();
     init_uart();
-    init_amplifier(); //need to be in that order
+    // init_amplifier() needs to be called before init_dac().
+    init_amplifier();
     init_dac();
 
     rotary_init();
@@ -76,6 +77,7 @@ int main(void) {
     struct EepromData eeprom_data = {0};
     int eeprom_offset = 240;
     int len = eeprom_read((uint8_t*)&eeprom_data, eeprom_offset, sizeof(eeprom_data));
+    // If we didn't succesfully read data from EEPROM, or the read data is garbage - use default values.
     if ((len != (int)sizeof(eeprom_data)) ||
         (eeprom_data.wave_frequency < WAVE_FREQUENCY_MIN) || (eeprom_data.wave_frequency > WAVE_FREQUENCY_MAX) ||
         (eeprom_data.volume_level < VOLUME_MIN) || (eeprom_data.volume_level > VOLUME_MAX))
@@ -86,37 +88,37 @@ int main(void) {
     } else {
         UART_SendString(UART_DEV, (const uint8_t*)"EEPROM: Data read succesfully\r\n");
     }
+
     int wave_frequency = eeprom_data.wave_frequency;
-    // Buffer for storing wave frequency value in text form.
-    // Used for printing onto the display.
-    int volume_level = eeprom_data.volume_level; // TODO: Reset volume level every time to this value
+    int volume_level = eeprom_data.volume_level;
 
     // -------- SETUP DAC - DMA TRANSFER --------
     dac_dma_setup(&DMA_LLI_Struct, &GPDMACfg, &DAC_ConverterConfigStruct, wave_lut, DMA_SIZE, wave_frequency);
 
     reset_volume(volume_level);
 
-    // TODO: Better name for these variables?
+    // Variables used for animating LED lights.
     int led_counter = 0;
     unsigned int led_index = 0;
 
-    bool is_dark_mode = light_read() < LIGHT_MODE_THRESHOLD;
-
-    // index of currently selected menu option
+    // Index of currently selected menu option
     enum MenuEntry active_menu_entry = MENU_ENTRY_FREQUENCY;
 
     // -------- PREPARE DISPLAY --------
+    bool is_dark_mode = light_read() < LIGHT_MODE_THRESHOLD;
     refresh_screen(is_dark_mode, true, wave_frequency, volume_level, active_menu_entry, REDRAW_ALL);
 
-    while (1) {
+    for (;;) {
         bool frequency_changed = false;
         bool volume_changed = false;
 
+        // Read input.
         uint8_t joystick_value = joystick_read();
         uint8_t rotary_value = rotary_read();
 
         enum MenuEntry last_active_menu_entry = active_menu_entry;
 
+        // Check joystick input.
         if (BITWISE_AND(joystick_value, JOYSTICK_UP)) {
             active_menu_entry++;
             active_menu_entry = (active_menu_entry) % MENU_ENTRY_COUNT;
@@ -126,11 +128,12 @@ int main(void) {
             active_menu_entry = (active_menu_entry) % MENU_ENTRY_COUNT;
         }
 
+        // If active menu entry has changed - redraw screen.
         if (active_menu_entry != last_active_menu_entry) {
             refresh_screen(is_dark_mode, false, wave_frequency, volume_level, active_menu_entry, REDRAW_ALL);
         }
 
-        // TODO maybe move blocks inside cases to functions
+        // Depending on active menu entry, we check rotary input and change corresponding parameter.
         switch (active_menu_entry) {
             case MENU_ENTRY_FREQUENCY:
                 if (rotary_value == ROTARY_LEFT) {
@@ -190,6 +193,7 @@ int main(void) {
             }
         }
 
+        // Read button input and mute / play sound if necessary.
         if (button_left_is_pressed()) {
             lut_fill_with_zeroes(wave_lut);
         }
@@ -202,12 +206,14 @@ int main(void) {
         int light_value = light_read();
         is_dark_mode = light_value < LIGHT_MODE_THRESHOLD;
 
+        // If light mode has changed, we redraw the screen.
         if (was_dark_mode != is_dark_mode) {
             refresh_screen(is_dark_mode, true, wave_frequency, volume_level, active_menu_entry, REDRAW_ALL);
         }
 
-        led_counter += 10;
 
+        // Animate leds.
+        led_counter += 10;
         if (led_counter % (WAVE_FREQUENCY_MAX + 1 - wave_frequency) == 0) {
             led_index++;
             set_leds_cyclic(led_index);
