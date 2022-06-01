@@ -23,9 +23,9 @@ void set_leds_cyclic(unsigned int iteration) {
 }
 
 /**
- * @brief fill less significant bits ones
+ * @brief fill less significant bits with ones
  *
- * @param wave_height number of ones to fill value with
+ * @param wave_height number of bits to fill
  * @return uint8_t
  */
 static uint8_t wave_to_led(uint8_t wave_height) {
