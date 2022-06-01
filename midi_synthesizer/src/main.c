@@ -3,7 +3,6 @@
 #include "lpc17xx_gpdma.h"
 #include "lpc17xx_gpio.h"
 #include "lpc17xx_uart.h"
-#include "lpc17xx_adc.h"
 #include "lpc17xx_i2c.h"
 #include "lpc17xx_ssp.h"
 #include "lpc17xx_timer.h"
@@ -58,7 +57,6 @@ int main(void) {
     init_i2c();
     init_ssp();
     init_uart();
-    init_adc();
     init_amplifier(); //need to be in that order
     init_dac();
 

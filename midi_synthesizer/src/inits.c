@@ -5,7 +5,6 @@
 #include "lpc17xx_gpdma.h"
 #include "lpc17xx_gpio.h"
 #include "lpc17xx_uart.h"
-#include "lpc17xx_adc.h"
 #include "lpc17xx_i2c.h"
 #include "lpc17xx_ssp.h"
 #include "lpc17xx_timer.h"
@@ -92,33 +91,10 @@ void init_ssp(void) {
 
 }
 
-void init_adc(void) {
-    PINSEL_CFG_Type PinCfg;
-
-    /*
-     * Init ADC pin connect
-     * AD0.0 on P0.23
-     */
-    PinCfg.Funcnum = 1;
-    PinCfg.OpenDrain = 0;
-    PinCfg.Pinmode = 0;
-    PinCfg.Pinnum = 23;
-    PinCfg.Portnum = 0;
-    PINSEL_ConfigPin(&PinCfg);
-
-    /* Configuration for ADC :
-     * 	Frequency at 0.2Mhz
-     *  ADC channel 0, no Interrupt
-     */
-    ADC_Init(LPC_ADC, 200000);
-    ADC_IntConfig(LPC_ADC,ADC_CHANNEL_0,DISABLE);
-    ADC_ChannelCmd(LPC_ADC,ADC_CHANNEL_0,ENABLE);
-}
-
 /**
  * @brief Initialize DAC.
  *
- * @retval None
+ * @return None
  */
 void init_dac(void) {
     /*
